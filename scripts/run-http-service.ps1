@@ -79,10 +79,21 @@ $ErrorActionPreference = 'Continue'
 
 # Foreground, all streams appended to the log. The server reads its own .env from $RepoRoot,
 # so the working directory is not load-bearing, but set it anyway for clarity.
-# NOT `*>> $log`: PowerShell 5.1's redirection operators write UTF-16LE, which produced a log
-# full of NUL-separated characters that grep, Select-String and tail all choke on. Piping to
-# Out-File with an explicit encoding keeps it plain UTF-8 and greppable.
-& $node $entry --http 2>&1 | Out-File -FilePath $log -Append -Encoding utf8
+# Two things are deliberate here.
+#
+# 1. NOT `*>> $log`. PowerShell 5.1's redirection operators write UTF-16LE, which produced a
+#    log full of NUL-separated characters that grep, Select-String and tail all choke on.
+#    Out-File with an explicit -Encoding utf8 keeps it plain and greppable.
+# 2. The ForEach-Object unwraps ErrorRecords. `2>&1` turns every line the server writes to
+#    stderr into a PowerShell ErrorRecord, and Out-File then renders each one with the full
+#    "At <script>:<line> char:.. / + CategoryInfo .. / + FullyQualifiedErrorId .." decoration.
+#    The server logs normal operational output to stderr, so without this the log is roughly
+#    six lines of PowerShell noise per one line of actual content.
+& $node $entry --http 2>&1 |
+  ForEach-Object {
+    if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.Exception.Message } else { $_ }
+  } |
+  Out-File -FilePath $log -Append -Encoding utf8
 
 $code = $LASTEXITCODE
 Add-Content -LiteralPath $log -Encoding UTF8 -Value (
