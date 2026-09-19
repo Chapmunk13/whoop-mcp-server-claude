@@ -62,7 +62,7 @@ if (-not $node) {
 }
 if (-not $node) { throw 'node.exe not found on PATH or in the usual install locations.' }
 
-Add-Content -LiteralPath $log -Value (
+Add-Content -LiteralPath $log -Encoding UTF8 -Value (
   "`n==== {0} starting: {1} --http (node: {2}) ====" -f
   (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $entry, $node
 )
@@ -79,10 +79,13 @@ $ErrorActionPreference = 'Continue'
 
 # Foreground, all streams appended to the log. The server reads its own .env from $RepoRoot,
 # so the working directory is not load-bearing, but set it anyway for clarity.
-& $node $entry --http 2>&1 *>> $log
+# NOT `*>> $log`: PowerShell 5.1's redirection operators write UTF-16LE, which produced a log
+# full of NUL-separated characters that grep, Select-String and tail all choke on. Piping to
+# Out-File with an explicit encoding keeps it plain UTF-8 and greppable.
+& $node $entry --http 2>&1 | Out-File -FilePath $log -Append -Encoding utf8
 
 $code = $LASTEXITCODE
-Add-Content -LiteralPath $log -Value (
+Add-Content -LiteralPath $log -Encoding UTF8 -Value (
   "==== {0} exited with code {1} ====" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $code
 )
 exit $code
