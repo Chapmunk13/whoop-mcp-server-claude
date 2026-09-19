@@ -12,17 +12,36 @@ export class WhoopMcpServer {
   private server: Server;
   private whoopClient: WhoopApiClient;
 
-  constructor(config: WhoopApiConfig) {
-    this.whoopClient = new WhoopApiClient(config);
+  constructor(config: WhoopApiConfig, sharedClient?: WhoopApiClient) {
+    // HTTP mode builds a fresh Server per request but must reuse ONE client, so the token
+    // store, proactive refresh and in-flight refresh collapsing are shared rather than
+    // duplicated per request.
+    this.whoopClient = sharedClient ?? new WhoopApiClient(config);
     
     this.server = new Server(
       {
         name: 'whoop-mcp-server',
         version: '1.0.0',
+      },
+      {
+        // SDK 1.x refuses setRequestHandler for a capability that was not declared.
+        // Omitting this compiles fine and then throws at construction:
+        // "Server does not support tools (required for tools/list)".
+        capabilities: { tools: {} },
       }
     );
 
     this.setupToolHandlers();
+  }
+
+  /** The underlying MCP Server, for transports wired up outside this class. */
+  getServer(): Server {
+    return this.server;
+  }
+
+  /** The shared WHOOP client, so HTTP mode can reuse one token store across requests. */
+  getClient(): WhoopApiClient {
+    return this.whoopClient;
   }
 
   private setupToolHandlers() {
@@ -556,9 +575,14 @@ export class WhoopMcpServer {
     });
   }
 
-  async run() {
+  async runStdio() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('WHOOP MCP Server started');
+    console.error('WHOOP MCP Server started (stdio)');
+  }
+
+  /** Back-compat alias. Existing callers and the stdio entry point use this. */
+  async run() {
+    return this.runStdio();
   }
 }
