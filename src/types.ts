@@ -158,6 +158,21 @@ export interface WhoopApiConfig {
   clientSecret: string;
   redirectUri: string;
   accessToken?: string;
+  /** Persisted refresh token. Only issued when the `offline` scope is requested. */
+  refreshToken?: string;
+  /** Epoch ms at which the access token expires. */
+  expiresAt?: number;
+  /** Override the token-store location. Defaults to whoop-tokens.json at the package root. */
+  tokenStorePath?: string;
+}
+
+export interface WhoopTokenStore {
+  accessToken?: string;
+  refreshToken?: string | null;
+  expiresAt?: number;
+  expiresIn?: number;
+  scope?: string;
+  timestamp?: string;
 }
 
 export interface PaginationParams {

@@ -4,11 +4,15 @@
 // Usage: node whoop-mcp-server.js
 
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { WhoopMcpServer } from './dist/mcp-server.js';
-import { WhoopApiConfig } from './dist/types.js';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from THIS package's .env, not the caller's cwd. An MCP host
+// spawns the server from an arbitrary working directory, so a bare dotenv.config() silently
+// finds nothing and the server dies on "missing required environment variables".
+const __pkgDir = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__pkgDir, '.env') });
 
 // Validate required environment variables
 const requiredEnvVars = ['WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'WHOOP_REDIRECT_URI'];
@@ -21,10 +25,10 @@ if (missingVars.length > 0) {
 }
 
 // Create WHOOP API configuration
-const config: WhoopApiConfig = {
-  clientId: process.env.WHOOP_CLIENT_ID!,
-  clientSecret: process.env.WHOOP_CLIENT_SECRET!,
-  redirectUri: process.env.WHOOP_REDIRECT_URI!,
+const config = {
+  clientId: process.env.WHOOP_CLIENT_ID,
+  clientSecret: process.env.WHOOP_CLIENT_SECRET,
+  redirectUri: process.env.WHOOP_REDIRECT_URI,
 };
 
 // Create and run the MCP server
