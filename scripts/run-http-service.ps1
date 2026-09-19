@@ -69,9 +69,17 @@ Add-Content -LiteralPath $log -Value (
 
 Set-Location -LiteralPath $RepoRoot
 
+# CRITICAL: drop back to Continue before invoking node.
+# The server writes its startup banner and all diagnostics to STDERR (console.error). Under
+# $ErrorActionPreference='Stop', PowerShell promotes a native command's stderr output to a
+# TERMINATING NativeCommandError, so the launcher aborted the instant the server said
+# "listening", the task reported LastTaskResult=1, and the log contained only the start
+# banner with no error and no exit line. The server itself was fine.
+$ErrorActionPreference = 'Continue'
+
 # Foreground, all streams appended to the log. The server reads its own .env from $RepoRoot,
 # so the working directory is not load-bearing, but set it anyway for clarity.
-& $node $entry --http *>> $log
+& $node $entry --http 2>&1 *>> $log
 
 $code = $LASTEXITCODE
 Add-Content -LiteralPath $log -Value (
