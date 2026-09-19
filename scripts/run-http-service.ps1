@@ -11,13 +11,22 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+  [string]$RepoRoot,
   [string]$LogDir,
   [int]$MaxLogBytes = 5MB,
   [int]$KeepLogs = 5
 )
 
 $ErrorActionPreference = 'Stop'
+
+# See install-service-task.ps1: $PSScriptRoot is not reliable across every invocation path,
+# and a null in a param default throws before the body can report anything useful.
+if (-not $RepoRoot) {
+  $ScriptDir = $PSScriptRoot
+  if (-not $ScriptDir) { $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+  if (-not $ScriptDir) { throw 'Cannot determine script directory; pass -RepoRoot explicitly.' }
+  $RepoRoot = Split-Path -Parent $ScriptDir
+}
 
 if (-not $LogDir) { $LogDir = Join-Path $RepoRoot 'logs' }
 if (-not (Test-Path -LiteralPath $LogDir)) {

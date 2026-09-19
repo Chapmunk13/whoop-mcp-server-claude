@@ -16,19 +16,28 @@
 [CmdletBinding()]
 param(
   [string]$TaskName = 'whoop-mcp-server',
-  [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+  [string]$RepoRoot,
   [int]$RestartCount = 999,
   [int]$RestartIntervalMinutes = 1
 )
 
 $ErrorActionPreference = 'Stop'
 
+# $PSScriptRoot can come back EMPTY depending on how the script is invoked (observed when
+# launched via `& powershell -File <path-with-spaces>` from another script). Resolve our own
+# location defensively rather than trusting it in a param default, where a null would throw
+# before the body ever runs.
+$ScriptDir = $PSScriptRoot
+if (-not $ScriptDir) { $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $ScriptDir) { throw 'Cannot determine script directory; pass -RepoRoot explicitly.' }
+if (-not $RepoRoot)  { $RepoRoot = Split-Path -Parent $ScriptDir }
+
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
   [Security.Principal.WindowsIdentity]::GetCurrent()
 ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) { throw 'Must run elevated to register a SYSTEM scheduled task.' }
 
-$launcher = Join-Path $PSScriptRoot 'run-http-service.ps1'
+$launcher = Join-Path $ScriptDir 'run-http-service.ps1'
 if (-not (Test-Path -LiteralPath $launcher)) { throw "Launcher not found: $launcher" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot '.env'))) {
   throw "No .env at $RepoRoot. The server cannot start without credentials."
